@@ -1,0 +1,60 @@
+#include <SFML/Graphics.hpp>
+#include <vector>
+#include <cmath>
+using namespace sf;
+
+Vector2f middle = { 0,0 };
+const float r_c = 200;
+struct verletObject
+{
+    CircleShape test;
+    Vector2f position_current;// = { 300.0f, 400.0f };
+    Vector2f position_old;// = { 300.0f, 400.0f };
+    Vector2f acceleration;// = { 0.0f, 0.0f };
+    float rad = 20.0f;
+
+
+
+    float getDistance(Vector2f pos1, Vector2f pos2)
+    {
+        return sqrt(pow(pos2.x - pos1.x, 2) + pow(pos2.y - pos1.y, 2));
+    }
+
+    bool checkConstraintCollision(Vector2f position_current, float rad_obj)
+    {
+        return getDistance(middle, position_current) > r_c - rad_obj;
+    }
+
+    void applyConstraint()
+    {
+        Vector2f distance_vec = position_current - middle;
+        const Vector2f to_shape = position_current - middle;
+        const Vector2f n = distance_vec / getDistance(middle, position_current);
+        position_current = middle + n * (r_c - rad);
+    }
+
+    void objCollision()
+    {
+
+    }
+
+    Vector2f updatePosition(Vector2f position_current, float dt)
+    {
+        Vector2f displacement = position_current - position_old;
+        position_old = position_current;
+        position_current = position_old + displacement + acceleration * (dt * dt);
+        acceleration = {};
+
+        if (checkConstraintCollision(position_current, rad) == 1)
+        {
+            applyConstraint();
+        }
+        return position_current;
+    }
+
+    void accelerate(Vector2f acc)
+    {
+        acceleration += acc;
+    }
+};
+

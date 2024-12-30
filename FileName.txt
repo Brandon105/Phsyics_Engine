@@ -1,0 +1,118 @@
+#include <SFML/Graphics.hpp>
+#include <cmath>
+#include <iostream>
+#include <vector>
+
+
+using namespace sf;
+
+
+const float r_0 = 20.0f;
+const float r_c = 300.0f;
+Vector2f velocilty;
+//float distance = 0.0f;
+float dt = 0.0f;
+
+Vector2f position_current = { 600.0f, 400.0f };
+Vector2f position_old = { 600.0f, 400.0f };
+Vector2f acceleration = { 0.0f, .5f };
+const float radius = 20.0;
+
+Vector2f updatePosition(float dt)
+{
+    const Vector2f displacement = position_current - position_old;
+    position_old = position_current;
+    position_current = position_current + displacement + acceleration * (dt * dt);
+    acceleration = {};
+    return position_current;
+}
+
+void accelerate(Vector2f acc)
+{
+    acceleration += acc;
+}
+int main()
+{
+    RenderWindow window(VideoMode(800, 800), "SFML works!"); //creates a window of given resolution
+    window.setFramerateLimit(60);
+
+    const Vector2f middle = { 400.0, 400.0 };
+    CircleShape constraint(r_c);
+    constraint.setOrigin(r_c, r_c);
+    constraint.setPosition(middle);
+    constraint.setFillColor(Color::Transparent);
+    constraint.setOutlineThickness(2.0);
+
+    CircleShape shape(r_0); //creates a circle of given radius
+    shape.setOrigin(r_0, r_0);
+    shape.setPosition(600, 600);
+    shape.setFillColor(Color::Blue);
+
+
+    while (window.isOpen()) //creates a game loop 
+    {
+        Event event; //creates event object
+        while (window.pollEvent(event)) //loop that checks for events
+        {
+            if (event.type == Event::Closed) //checks if the window is closed
+                window.close();
+        } //ends the event loop
+
+
+
+        dt += 1.0f;
+
+        const float distance = sqrt(pow(shape.getPosition().x - 400, 2) + pow(shape.getPosition().y - 400, 2));
+        Vector2f distance_vec = shape.getPosition() - middle;
+        std::cout << distance_vec.y << std::endl;
+
+        shape.setPosition(updatePosition(dt));
+        accelerate(acceleration);
+
+
+        if (distance > r_c - r_0)
+        {
+            const Vector2f to_shape = position_current - middle;
+            const Vector2f n = distance_vec / distance;
+            shape.setPosition(middle + n * (distance - r_0));
+        }
+
+
+
+
+        window.clear();
+        window.draw(shape);
+        window.draw(constraint);
+        window.display();
+    }
+
+    return 0;
+}
+
+
+
+
+void solveCollisions()
+{
+    for (int i = 0; i < obj_num; i++)
+    {
+        verletObject& group_1 = temp_obj[i];
+        for (int j = 1; j < obj_num; j++)
+        {
+            verletObject& group_2 = temp_obj[j];
+            const Vector2f collision_axis = group_1.position_current - group_2.position_current;
+            const float distance = temp_obj->getDistance(group_1.position_current, group_2.position_current);
+            //const Vector2f collision_axis = temp_obj[i - 1].position_current - temp_obj[i].position_current;
+            //const float distance = temp_obj->getDistance(temp_obj[i - 1].position_current, temp_obj[i].position_current);
+            if (distance < group_1.rad + group_2.rad)
+            {
+                const Vector2f n = collision_axis / distance;
+                const float displacement = (group_1.rad + group_2.rad) - distance;
+                group_1.position_current += 0.5f * displacement * n;
+                group_2.position_current -= 0.5f * displacement * n;
+            }
+        }
+        
+    }
+}
+

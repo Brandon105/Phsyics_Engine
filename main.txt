@@ -1,0 +1,217 @@
+#include <SFML/Graphics.hpp>
+#include <cmath>
+#include <iostream>
+#include <vector>
+
+
+using namespace sf;
+
+
+//const float r_0 = 20.0f;
+const float r_c = 500.0f;
+const int obj_num = 2;
+//Vector2f velocilty;
+float dt = 0;
+//Vector2f gravity = { 0.0f, .001f };
+const Vector2f middle = { 720.0, 540.0 };
+const Vector2f start = { 400, 300 };
+Vector2f gravity = { 0.0f, 0.0002f };
+const int sub_steps = 6;
+
+struct verletObject
+{
+    CircleShape test;
+    Vector2f position_current;// = middle;
+    Vector2f position_old;// = middle;
+    Vector2f acceleration = { 0.0f, 0.0f };
+    float rad = 20.0f;
+
+
+    float getDistance (Vector2f pos1, Vector2f pos2)
+    {
+        return sqrt(pow(pos2.x - pos1.x, 2) + pow(pos2.y - pos1.y, 2));
+    }
+
+    bool checkConstraintCollision(Vector2f position_current, float rad_obj)
+    {
+        return getDistance(middle, position_current) > r_c - rad_obj;
+    }
+
+    bool checkObjCollision(verletObject obj1, verletObject obj2)
+    {
+        return getDistance(obj1.position_current, obj2.position_current) < obj1.rad + obj2.rad;
+    }
+
+    void applyConstraint()
+    {
+        Vector2f distance_vec = position_current - middle;
+        const Vector2f n = distance_vec / getDistance(middle, position_current);
+        position_current = middle + n * (r_c - rad);
+    }
+
+    void accelerate(Vector2f acc)
+    {
+        acceleration += acc;
+    }
+
+    void setPos()
+    {
+        test.setPosition(position_current);
+    }
+
+
+    
+};
+
+verletObject verlet_obj[obj_num];
+
+
+
+void solveCollisions()
+{
+    
+    for (int i = 0; i < obj_num; i++)
+    {
+        for (int j = i + 1; j < obj_num; j++)
+        {
+            const Vector2f collision_axis = verlet_obj[i].position_current - verlet_obj[j].position_current;
+            const float distance2 = (collision_axis.x * collision_axis.x) + (collision_axis.y * collision_axis.y);
+            const float temp_dist = sqrt(distance2);
+            const float min_dist = verlet_obj[i].rad + verlet_obj[j].rad;
+            //std::cout << i << " " << j << " " << temp_dist << std::endl;
+            if (distance2 < min_dist * min_dist)
+            {
+                const float distance = sqrt(distance2);
+                const float overlap = (min_dist - distance);
+                const Vector2f n = collision_axis / distance;
+                verlet_obj[i].position_current += .5f * overlap * n;
+                verlet_obj[j].position_current -= .5f * overlap * n;
+                //std::cout << overlap << std::endl;
+            }
+        }
+
+        
+    }
+}
+
+void applyGravity()
+{
+    for (int i = 0; i < obj_num; i++)
+    {
+        verlet_obj[i].accelerate(gravity);
+    }
+    
+}
+
+void updatePositions()
+{
+    for (int i = 0; i < obj_num; i++)
+    {
+        //verlet_obj[i].accelerate(gravity);
+        if (verlet_obj[i].checkConstraintCollision(verlet_obj[i].position_current, verlet_obj[i].rad) == 1)
+        {
+            verlet_obj[i].applyConstraint();
+        }
+        
+        Vector2f displacement = verlet_obj[i].position_current - verlet_obj[i].position_old;
+        verlet_obj[i].position_old = verlet_obj[i].position_current;
+        verlet_obj[i].position_current = verlet_obj[i].position_old + displacement + verlet_obj[i].acceleration * (dt * dt);
+        verlet_obj[i].acceleration = {};
+
+        verlet_obj[i].setPos();
+    }
+
+}
+
+
+
+//void applyConstraint()
+//{
+    //const Vector2f middle = { 720.0, 540.0 };
+    //const float r_c = 500.0f;
+    //for (int i = 0; i < obj_num; i++)
+    //{
+        //Vector2f distance_vec = temp_obj[i].position_current - middle;
+        //const Vector2f to_shape = temp_obj[i].position_current - middle;
+        //if (temp_obj[i].checkConstraintCollision(temp_obj[i].position_current, temp_obj[i].rad) == 1)
+        //{
+            //const Vector2f n = distance_vec / temp_obj[i].getDistance(middle, temp_obj[i].position_current);
+            //temp_obj[i].position_current = middle + n * (r_c - temp_obj[i].rad);
+        //}
+
+    //}
+
+//}
+
+
+
+void populate()
+{
+    for (int i = 0; i < obj_num; i++)
+    {
+        Vector2f temp = { 70.0f * float(i), 0.0f };
+        verlet_obj[i].position_current = start + temp;
+        verlet_obj[i].position_old = start + temp;
+        verlet_obj[i].rad = 20.0;
+        verlet_obj[i].test.setRadius(verlet_obj[i].rad);
+        verlet_obj[i].test.setOrigin(verlet_obj[i].rad, verlet_obj[i].rad);
+        verlet_obj[i].test.setFillColor(Color::Blue);
+    }
+}
+
+
+int main()
+{
+    RenderWindow window(VideoMode(1440, 1080), "SFML works!"); //creates a window of given resolution
+    window.setFramerateLimit(60);    
+    
+    
+    CircleShape constraint(r_c);
+    constraint.setOrigin(r_c, r_c);
+    constraint.setPosition(middle);
+    constraint.setFillColor(Color::Transparent);
+    constraint.setOutlineThickness(2.0);
+    constraint.setPointCount(128);
+    
+    
+    //CircleShape obj[obj_num];
+
+    populate();
+    
+
+    
+    while (window.isOpen()) //creates a game loop 
+    {
+        Event event; //creates event object
+        while (window.pollEvent(event)) //loop that checks for events
+        {
+            if (event.type == Event::Closed) //checks if the window is closed
+                window.close();
+        } //ends the event loop
+
+        
+        
+        window.clear();
+        applyGravity();
+        //applyConstraint();
+       
+        for (int k = 0; k < sub_steps; k++)
+        {
+            
+            updatePositions();
+            solveCollisions();
+        }
+       
+        for (int l = 0; l < obj_num; l++)
+        {
+            window.draw(verlet_obj[l].test);
+
+        }
+
+        window.draw(constraint);
+        window.display();
+        dt += 1;
+    }
+
+    return 0;
+}
